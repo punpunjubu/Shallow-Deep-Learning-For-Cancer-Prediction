@@ -1,0 +1,243 @@
+---
+title: "Thanyarat Munkong"
+output:
+  html_document:
+    df_print: paged
+---
+Calling required libraries
+```{r}
+library(reticulate)
+library(keras)
+library(tensorflow)
+library(dplyr)
+library(ggplot2)
+```
+Importing the dataset
+```{r}
+set.seed(101)
+df <- read.csv("cancer.csv")
+str(df)
+```
+```{r}
+summary(df)
+```
+```{r}
+head(df)
+```
+Checking missing data
+```{r}
+any(is.na(df))
+```
+Scaling data and finding min and max in each column
+```{r}
+df.num <- dplyr::select(df,-diag)
+maxs <- apply(df.num, 2, max) #find max in columns
+mins <- apply(df.num, 2, min) #find min in columns
+```
+```{r}
+maxs
+```
+```{r}
+mins
+```
+```{r}
+scaled <- as.data.frame(scale(df.num, center = mins, scale = maxs - mins))
+
+scaled$diag <- as.numeric(df$diag)-1
+
+head(scaled)
+```
+Converting outcome to numeric
+```{r}
+as.numeric(df$diag)-1
+```
+Splitting data to training set and validation set
+```{r}
+library(caTools)
+tr = sample.split(scaled$diag, SplitRatio = 0.70)
+
+train = subset(scaled, tr)
+validate = subset(scaled, !tr)
+```
+Encoding outcome in training set
+```{r}
+labels.train <- to_categorical(train$diag)
+head(labels.train)
+```
+
+```{r}
+colSums(labels.train)
+```
+Encoding outcome in validation set
+```{r}
+labels.validate <- to_categorical(validate$diag)
+head(labels.validate)
+```
+```{r}
+colSums(labels.validate)
+```
+First model (activation funtion = tanh, softmax, hiddenlayer = 4 layers)
+```{r}
+# Initialize a sequential model
+model1 <- keras_model_sequential() 
+
+
+model1 %>%
+  layer_dense(units = 10, activation = 'tanh', input_shape = 30) %>%
+  layer_dense(units = 5, activation = 'tanh') %>%
+  layer_dense(units = 3, activation = 'tanh') %>%
+  layer_dense(units = 2, activation = 'softmax')
+
+# Compile the model
+model1 %>% compile(
+  loss = 'categorical_crossentropy',
+  optimizer = optimizer_sgd(lr = 0.05),
+  metrics = 'accuracy'
+)
+
+
+# Store the fitting history1 in `history1` 
+train.mat <- dplyr::select(train, -diag) %>% as.matrix
+validate.mat <- dplyr::select(validate, -diag) %>% as.matrix
+
+history1 <- model1 %>% fit(
+  train.mat, 
+  labels.train, 
+  epochs = 250,
+  batch_size = 5, 
+  validation_data = list(validate.mat, labels.validate )
+)
+```
+Chart1.1: loss vs epoch and accuracy vs epoch 
+```{r}
+p1 <- plot(history1)
+p1
+
+```
+
+Chat1.2: loss value vs epoch
+```{r}
+dat1 <- data.frame(epoch=1:250,loss=history1$metrics$loss, val_loss=history1$metrics$val_loss)
+dat_gat1 <- tidyr::gather(dat1,'loss','val_loss',key='type',value='loss_val')
+p1_1 <- ggplot(aes(x = epoch, y= loss_val),data=dat_gat1) + geom_line(aes(color=type)) +theme_bw()
+p1_1
+```
+
+second model (activation funtion = relu, softmax, hiddenlayer = 4 layers)
+```{r}
+# Initialize a sequential model
+model2 <- keras_model_sequential() 
+
+
+model2 %>%
+  layer_dense(units = 10, activation = 'relu', input_shape = 30) %>%
+  layer_dense(units = 5, activation = 'relu') %>%
+  layer_dense(units = 3, activation = 'relu') %>%
+  layer_dense(units = 2, activation = 'softmax')
+
+# Compile the model
+model2 %>% compile(
+  loss = 'categorical_crossentropy',
+  optimizer = optimizer_sgd(lr = 0.05),
+  metrics = 'accuracy'
+)
+
+history2 <- model2 %>% fit(
+  train.mat, 
+  labels.train, 
+  epochs = 250,
+  batch_size = 5, 
+  validation_data = list(validate.mat, labels.validate )
+)
+```
+
+Chart2.1: loss vs epoch and accuracy vs epoch
+```{r}
+p2 <- plot(history2)
+p2
+```
+
+Chart2.2: loss value vs epoch
+```{r}
+dat2 <- data.frame(epoch=1:250,loss=history2$metrics$loss, val_loss=history2$metrics$val_loss)
+dat_gat2 <- tidyr::gather(dat2,'loss','val_loss',key='type',value='loss_val')
+p2_2 <- ggplot(aes(x = epoch, y= loss_val),data=dat_gat2) + geom_line(aes(color=type)) +theme_bw()
+p2_2
+```
+
+third model (activation funtion = relu, softmax, hiddenlayer = 7 layers)
+```{r}
+# Initialize a sequential model
+model3 <- keras_model_sequential() 
+
+
+model3 %>%
+  layer_dense(units = 10, activation = 'relu', input_shape = 30) %>%
+  layer_dense(units = 7, activation = 'relu') %>%
+  layer_dense(units = 6, activation = 'relu') %>%
+  layer_dense(units = 5, activation = 'relu') %>%
+  layer_dense(units = 4, activation = 'relu') %>%
+  layer_dense(units = 3, activation = 'relu') %>%
+  layer_dense(units = 2, activation = 'softmax')
+
+# Compile the model
+model3 %>% compile(
+  loss = 'categorical_crossentropy',
+  optimizer = optimizer_sgd(lr = 0.05),
+  metrics = 'accuracy'
+)
+
+
+
+history3 <- model3 %>% fit(
+  train.mat, 
+  labels.train, 
+  epochs = 250,
+  batch_size = 5, 
+  validation_data = list(validate.mat, labels.validate )
+)
+```
+
+Chart3.1: loss vs epoch and accuracy vs epoch
+```{r}
+p3 <- plot(history3)
+p3
+```
+
+Chart3.2: loss value vs epoch
+```{r}
+dat3 <- data.frame(epoch=1:250,loss=history3$metrics$loss, val_loss=history3$metrics$val_loss)
+dat_gat3 <- tidyr::gather(dat3,'loss','val_loss',key='type',value='loss_val')
+p3_3 <- ggplot(aes(x = epoch, y= loss_val),data=dat_gat3) + geom_line(aes(color=type)) +theme_bw()
+```
+
+Chart1.1
+```{r}
+p1
+```
+
+Chart2.1
+```{r}
+p2
+```
+
+Chart3.1
+```{r}
+p3
+```
+
+จาก Chart1.1 Chart2.1 และ Chart3.1 จะเห็นได้ว่าเมื่อเปลี่ยน Activation function จาก tanh เป็น relu จะได้ค่าaccuracy บนtraining set และ validation set ที่ใกล้เคียงกันและเมื่อเพิ่มจำนวน hidden layer จาก 4 ชั้น เป็น 7 ชั้น จะทำให้ได้ค่า accuracy ที่สูงขึ้นและ loss ลดต่ำลง
+```{r}
+# install.packages("gridExtra")
+library(gridExtra)
+grid.arrange(p1, p2, p3, nrow=3)
+```
+
+```{r}
+grid.arrange(p1_1, p2_2, p3_3, nrow=3)
+```
+
+กราฟแรกเป็นรูปจาก Chart1.2 ซึ่งActivation function เป็น tanh กับ softmax และจำนวน hidden layer คือ 4
+กราฟสองเป็นรูปจาก Chart2.2 ซึ่งActivation function เป็น relu กับ softmax และจำนวน hidden layer คือ 4
+กราฟสามเป็นรูปจาก Chart3.2 ซึ่งActivation function เป็น relu กับ softmax และจำนวน hidden layer คือ 7
+จะเห็นว่าเมื่อเปลี่ยนActivation function จาก tanh เป็น relu และเพิ่มจำนวน hidden layer จาก 4 เป็น 7 จะทำให้ loss_val ลดต่ำลง
